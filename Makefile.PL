@@ -12,6 +12,16 @@ if ($^O eq 'darwin') {
                 LDDLFLAGS => $Config{lddlflags} . qq( -framework OpenGL),
                 INC => '-FOpenGL',
         );
+} elsif ($^O eq 'freebsd') {
+        # Default configuration..
+        push @flags,(
+                LIBS => '-L/usr/X11R6/lib -lGL -lGLU',
+                CCFLAGS => '-I/usr/X11R6/include',
+        );
+} elsif ($^O eq 'MSWin32') {
+        push @flags,(
+                LIBS => '-lopengl32 -lGLU32',
+        );
 } else {
         # Default configuration..
         push @flags,(

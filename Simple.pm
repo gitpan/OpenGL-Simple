@@ -261,7 +261,7 @@ our %EXPORT_TAGS = ( 'all' => [ qw(
 
 		
 
-		gluPerspective gluOrtho2D
+		gluPerspective gluOrtho2D gluLookAt
 
         glLoadTexture
         glSetupTexGen
@@ -273,7 +273,7 @@ our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT = qw(
 	
 );
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 # Stolen from output of h2xs
 

@@ -1081,3 +1081,5 @@ void gluPerspective(GLdouble fovy,GLdouble aspect,GLdouble zNear,GLdouble zFar);
 
 void gluOrtho2D(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top );
 
+void gluLookAt( GLdouble eyeX, GLdouble eyeY, GLdouble eyeZ, GLdouble centerX, GLdouble centerY, GLdouble centerZ, GLdouble upX, GLdouble upY, GLdouble upZ );
+
