@@ -31,7 +31,65 @@ MODULE = OpenGL::Simple		PACKAGE = OpenGL::Simple
 
 INCLUDE: const-xs.inc
 
-GLubyte *glGetString (GLenum name);
+PROTOTYPES: DISABLE
+
+void glAccum(GLenum op, GLfloat value);
+
+void glAlphaFunc(GLenum func, GLclampf ref);
+
+void glClearAccum(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha);
+
+void glClearIndex( GLfloat c );
+
+void glClearStencil( GLint s );
+
+void glEdgeFlag( GLboolean flag );
+
+void glFogf( GLenum pname, GLfloat param);
+
+void glFogi( GLenum pname, GLint param);
+
+void glFog(...)
+    CODE:
+         if (2>items) { croak("Usage: glFog(pname, param)"); }
+
+         if (GL_FOG_COLOR==SvIV(ST(0))) {
+             if (5!=items) {  croak("Usage: glFog(GL_FOG_COLOR,@color)");
+             } else {
+                 GLfloat col[4];
+                 int i;
+                 for (i=0;i<4;i++) {
+                     col[i] = (GLfloat) SvNV(ST(1+i));
+                 }
+                 glFogfv(GL_FOG_COLOR,col);
+             }
+         } else if (2==items) {
+             glFogf(SvIV(ST(0)),(GLfloat)SvNV(ST(1)));
+         } else { croak("Usage: glFog(pname, param)"); }
+
+void glIndexMask( GLuint mask);
+
+void glInitNames();
+
+GLboolean glIsEnabled( GLenum cap );
+
+void glLoadName( GLuint name );
+
+void glPassThrough( GLfloat token );
+
+void glPushName( GLuint name );
+
+void glPopName();
+
+GLint glRenderMode( GLenum mode );
+
+void glScissor( GLint x, GLint y, GLsizei width, GLsizei height);
+
+void glStencilFunc( GLenum func, GLint ref, GLuint mask);
+
+void glStencilOp( GLenum fail, GLenum zfail, GLenum zpass);
+
+const GLubyte *glGetString (GLenum name);
 
 void glBegin(GLenum mode);
 
@@ -50,6 +108,82 @@ void glClearColor( GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
 void glClear(GLbitfield mask);
 
 void glClearDepth(GLclampd depth);
+
+void glClipPlane(...)
+	PREINIT:
+                GLenum plane;
+                GLdouble equation[4];
+	CODE:
+		if ((2==items)
+                 && (SvROK(ST(1)) 
+		 && (SVt_PVAV == SvTYPE(SvRV(ST(1)))))
+		) {
+			/* Two items, of which the second is an array ref.  */
+
+			AV *array;
+                        int i;
+
+			array =(AV *) SvRV(ST(1));
+
+                        if (3!=av_len(array)) {
+			    croak("glClipPlane($scalar,\\@array)"
+                                  "should be passed an array of "
+                                  "exactly 4 elements, not %d.",
+                                  1+av_len(array));
+                        }
+
+                        plane = (GLenum) SvIV(ST(0));
+
+                        for (i=0;i<4;i++) {
+                            SV **svp;
+                            svp = av_fetch(array,i,0);
+                            equation[i] = (GLdouble) SvNV(*svp);
+                        }
+                } else if (5==items) {
+                    /* assume args are (plane,a,b,c,d). */
+                    int i;
+                    plane = (GLenum) SvIV(ST(0));
+                    for (i=0;i<4;i++) {
+                        equation[i] = (GLdouble) SvNV(ST(1+i));
+                    }
+                } else {
+                    croak("Usage: glClipPlane($plane,\\@equation)");
+                }
+
+                /* plane and equation[] are defined. */
+
+                glClipPlane(plane,equation);
+
+void glGetClipPlane(...)
+    PREINIT:
+        GLdouble equation[4];
+        int i;
+    PPCODE:
+        if (1==items) {
+            /* Dump everything on the stack */
+
+            glGetClipPlane(SvIV(ST(0)),equation);
+            EXTEND(sp,4);
+            for (i=0;i<4;i++) {
+                PUSHs(sv_2mortal(newSVnv(equation[i])));
+            }
+        } else if (2==items) {
+            /* Write through supplied array reference */
+
+            if (  (SvROK(ST(1)))
+                &&(SVt_PVAV==SvTYPE(SvRV(ST(1))))
+            ) {
+                AV *array=(AV *)SvRV(ST(1));
+
+                glGetClipPlane(SvIV(ST(0)),equation);
+                for (i=0;i<4;i++) {
+                    av_store(array,i,newSVnv(equation[i]));
+                }
+            }
+        } else {
+            /* Your what's itchy? */
+            croak("glGetClipPlane() takes either one or two arguments.");
+        }
 
 void glLoadIdentity();
 
@@ -89,14 +223,27 @@ void glPushMatrix();
 
 void glPopMatrix();
 
+void glPushAttrib( GLbitfield mask);
+
+void glPopAttrib();
+
 void glRotate(GLdouble angle, GLdouble x, GLdouble y, GLdouble z)
 	CODE:
 		glRotated(angle,x,y,z);
 
-void glTranslate(GLdouble x, GLdouble y, GLdouble z)
-	CODE:
-		glTranslated(x,y,z);
+void glRotated(GLdouble angle, GLdouble x, GLdouble y, GLdouble z);
 
+void glRotatef(GLfloat angle, GLfloat x, GLfloat y, GLfloat z);
+
+void glTranslate(GLfloat x, GLfloat y, GLfloat z)
+    CODE:
+        glTranslated(x,y,z);
+
+
+
+void glTranslatef(GLfloat x, GLfloat y, GLfloat z);
+
+void glTranslated(GLdouble x, GLdouble y, GLdouble z);
 
 void glScale(GLdouble x, GLdouble y, GLdouble z)
 	CODE:
@@ -176,7 +323,45 @@ void glEndList();
 
 void glCallList(GLuint list);
 
+void glCallLists(...)
+    CODE:
+        if (3==items) {
+            /* Do it the clunky C-like way */
+            glCallLists(
+                    (GLsizei)SvIV(ST(0)),
+                    (GLenum)SvIV(ST(1)),
+                    (const GLvoid *)SvPV_nolen(ST(2))
+            );
+        } else if (1==items) {
+            /* Do it the nice perl way */
+
+            int *lists=NULL;
+            AV *array=NULL;
+            GLsizei i,n=0;
+
+            if (SVt_PVAV != SvTYPE(SvRV(ST(0)))) {
+                croak("Must have array reference");
+            }
+            array = (AV *)SvRV(ST(0));
+
+            n=1+av_len(array);
+            if (NULL==(lists=malloc(sizeof(int)*n))) {
+                croak("glCallLists: malloc failed");
+            }
+            for (i=0;i<n;i++) {
+                SV **svp = av_fetch(array,i,0);
+                lists[i]=(int)SvIV(*svp);
+            }
+            glCallLists(n,GL_INT,lists);
+            free(lists);
+        } else {
+            croak("glCallLists() takes 1 or 3 arguments.");
+        }
+
+
 void glIsList(GLuint list);
+
+void glListBase( GLuint base );
 
 GLuint glGenLists(GLsizei range);
 
@@ -207,6 +392,38 @@ void glColor(...)
 			default:
 				croak("glColor() takes 3 or 4 arguments");
 		}
+
+void glColor3b( GLbyte red, GLbyte green, GLbyte blue );
+
+void glColor3d( GLdouble red, GLdouble green, GLdouble blue );
+
+void glColor3f( GLfloat red, GLfloat green, GLfloat blue );
+
+void glColor3i( GLint red, GLint green, GLint blue );
+
+void glColor3s( GLshort red, GLshort green, GLshort blue );
+
+void glColor3ub( GLubyte red, GLubyte green, GLubyte blue );
+
+void glColor3ui( GLuint red, GLuint green, GLuint blue );
+
+void glColor3us( GLushort red, GLushort green, GLushort blue );
+
+void glColor4b( GLbyte red, GLbyte green, GLbyte blue, GLbyte alpha );
+
+void glColor4d( GLdouble red, GLdouble green, GLdouble blue, GLdouble alpha );
+
+void glColor4f( GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha );
+
+void glColor4i( GLint red, GLint green, GLint blue, GLint alpha );
+
+void glColor4s( GLshort red, GLshort green, GLshort blue, GLshort alpha );
+
+void glColor4ub( GLubyte red, GLubyte green, GLubyte blue, GLubyte alpha );
+
+void glColor4ui( GLuint red, GLuint green, GLuint blue, GLuint alpha );
+
+void glColor4us( GLushort red, GLushort green, GLushort blue, GLushort alpha );
 
 void glColorMaterial(GLenum face, GLenum mode);
 
@@ -303,6 +520,8 @@ void glDepthMask(GLboolean flag);
 
 void glDepthRange(GLclampd near, GLclampd far);
 
+void glColorMask( GLboolean red, GLboolean green, GLboolean blue, GLboolean alpha );
+
 void glPolygonMode( GLenum face, GLenum mode );
 
 void glPolygonOffset( GLfloat factor, GLfloat units );
@@ -316,9 +535,13 @@ void glHint(GLenum target, GLenum mode);
 
 void glLineWidth(GLfloat width);
 
+void glLineStipple(GLint factor, GLushort pattern);
+
 void glPointSize( GLfloat size );
 
 void glOrtho( GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble zNear, GLdouble zFar );
+
+void glFrustum(GLdouble left,GLdouble right,GLdouble bottom,GLdouble top,GLdouble near_val,GLdouble far_val);
 
 void glFrontFace( GLenum mode );
 
@@ -573,7 +796,6 @@ void glGet(...)
 			case GL_GREEN_BIAS:
 			case GL_LINE_WIDTH:
 			case GL_LINE_WIDTH_GRANULARITY:
-			case GL_LINE_WIDTH_RANGE:
 			case GL_POINT_SIZE:
 			case GL_POINT_SIZE_GRANULARITY:
 			case GL_POLYGON_OFFSET_FACTOR:
@@ -588,6 +810,7 @@ void glGet(...)
 			case GL_DEPTH_RANGE:
 			case GL_MAP1_GRID_DOMAIN:
 			case GL_POINT_SIZE_RANGE:
+			case GL_LINE_WIDTH_RANGE:
 				rtype = FLOAT;
 				nvals = 2;
 				break;
@@ -816,7 +1039,7 @@ void glGenTextures(...)
 				croak("Second arg must be array ref");
 			}
 
-			array = SvRV(ST(1));
+			array = (AV *)SvRV(ST(1));
 		}
 
 		if (NULL==(texture=malloc(sizeof(GLuint)*n))) {
@@ -1018,6 +1241,64 @@ void realglTexImage2D( GLenum target,GLint level,GLint internalformat, GLsizei w
 			format,type,data
 		);
 
+void realglTexSubImage2D( GLenum target,GLint level,GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format,GLenum type, SV *pixels )
+	PREINIT:
+		SV *pixdatasv;
+		GLvoid *data;
+	CODE:
+
+		/* Extract pixel data first */
+
+		if (
+			(!SvROK(pixels)) ||
+			(!SvPOK(pixdatasv=SvRV(pixels)))
+		) {
+			croak("\"pixels\" should be a reference to scalar");
+		}
+		data = SvPV_nolen(pixdatasv);
+
+		glTexSubImage2D(
+			target,level,
+                        xoffset,yoffset,
+			width,height,
+			format,type,data
+		);
+
+
+void realglPolygonStipple( SV *pixels )
+	PREINIT:
+		SV *pixdatasv;
+		GLubyte *data;
+                size_t plen;
+	CODE:
+                if (!SvPOK(pixels)) {
+                    croak("not a pointer value..");
+                }
+                if (128 > SvLEN(pixels)) {
+                    croak("\"pixels\" should be 128 bytes (32x32 bits).");
+                }
+                data=SvPV_nolen(pixels);
+                glPolygonStipple(data);
+
+
+void realglReadPixels(GLint x, GLint y, GLsizei width, GLsizei height,GLenum format, GLenum type, SV *pixels)
+	PREINIT:
+		SV *pixdatasv;
+		GLvoid *data;
+	CODE:
+
+		/* Extract pixel data first */
+
+		if (
+			(!SvROK(pixels)) ||
+			(!SvPOK(pixdatasv=SvRV(pixels)))
+		) {
+			croak("\"pixels\" should be a reference to scalar");
+		}
+		data = SvPV_nolen(pixdatasv);
+                glReadPixels(x,y,width,height,format,type,data);
+
+
 void glDrawBuffer(GLenum mode);
 
 void glTexImage3D( GLenum target,GLint level,GLint internalformat, GLsizei width, GLsizei height,GLsizei depth, GLint border, GLenum format,GLenum type, SV *pixels )
@@ -1044,6 +1325,12 @@ void glTexImage3D( GLenum target,GLint level,GLint internalformat, GLsizei width
 
 
 void glPixelStorei(GLenum pname, GLint param );
+
+void glPixelStoref(GLenum pname, GLfloat param );
+
+void glPixelTransferi(GLenum pname, GLint param);
+
+void glPixelTransferf(GLenum pname, GLfloat param);
 
 void glTexGen(...)
 	PREINIT:
@@ -1074,6 +1361,8 @@ void glTexGen(...)
 				croak("Bad pname passed to glLight()");
 		}
 
+GLenum glGetError();
+
 # ################ GLU calls
 
 
@@ -1082,4 +1371,6 @@ void gluPerspective(GLdouble fovy,GLdouble aspect,GLdouble zNear,GLdouble zFar);
 void gluOrtho2D(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top );
 
 void gluLookAt( GLdouble eyeX, GLdouble eyeY, GLdouble eyeZ, GLdouble centerX, GLdouble centerY, GLdouble centerZ, GLdouble upX, GLdouble upY, GLdouble upZ );
+
+const GLubyte *gluErrorString(GLenum error);
 

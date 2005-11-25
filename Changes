@@ -8,3 +8,8 @@ Revision history for Perl extension OpenGL::Simple.
         - merged patches from Max Maischein and Autrijus Tang to fix
           Makefile.PL on win32 and FreeBSD respectively.
         - added gluLookAt
+
+0.03  Thu Nov 10 13:19:51 GMT 2005
+        - Added a bunch more calls, although the evaluator and pixel
+          calls still need finishing off.
+        - Some small fixes to build on MacOS.

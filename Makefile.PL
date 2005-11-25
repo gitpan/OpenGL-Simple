@@ -8,8 +8,8 @@ my @flags;
 
 if ($^O eq 'darwin') {
         push @flags,(
-                LIBS => '-L/usr/X11R6/lib -lGL -lGLU',
-                LDDLFLAGS => $Config{lddlflags} . qq( -framework OpenGL),
+                LIBS => '',
+                LDDLFLAGS => $Config{lddlflags} . qq( -framework OpenGL -framework Foundation),
                 INC => '-FOpenGL',
         );
 } elsif ($^O eq 'freebsd') {
@@ -118,6 +118,7 @@ WriteConstants(
 		GL_QUADRATIC_ATTENUATION
 
 		GL_CW GL_CCW
+                GL_EXP GL_EXP2
 
 		GL_TEXTURE_MIN_FILTER GL_TEXTURE_MAG_FILTER
 		GL_TEXTURE_WRAP_S GL_TEXTURE_WRAP_T GL_TEXTURE_PRIORITY

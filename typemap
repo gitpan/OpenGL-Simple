@@ -14,3 +14,4 @@ GLdouble	T_DOUBLE
 GLclampd	T_DOUBLE
 
 GLubyte *	T_PV
+const GLubyte * T_PV

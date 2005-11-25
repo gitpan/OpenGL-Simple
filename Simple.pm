@@ -19,26 +19,47 @@ our @ISA = qw(Exporter DynaLoader);
 # If you do not need this, moving things directly into @EXPORT or @EXPORT_OK
 # will save memory.
 our %EXPORT_TAGS = ( 'all' => [ qw(
+
+        glAccum glAlphaFunc glClearAccum glClearIndex glClearStencil
+        glEdgeFlag glFogf glFogi glFog
+        glIndexMask glInitNames glIsEnabled glLoadName
+        glPushName glPopName glRenderMode
+        glScissor glStencilFunc glStencilOp
+
+
 	glGetString
 	glBegin glEnd glEnable glDisable glFinish glFlush
 	glClearColor glClear glClearDepth
+        glClipPlane glGetClipPlane
 	glLoadIdentity glMatrixMode glLoadMatrix glMultMatrix
 	glPushMatrix glPopMatrix
 
-	glRotate glTranslate glScale
+        glPushAttrib glPopAttrib
+
+	glRotate glRotatef glRotated
+        glTranslate glTranslatef glTranslated
+        glScale
 	glRect
 	glVertex glNormal
 	glVertex2d glVertex2f glVertex2i glVertex2s glVertex3d
 	glVertex3f glVertex3i glVertex3s glVertex4d glVertex4f glVertex4i
-	glColor glColorMaterial glMaterial
 
-	glNewList glCallList glEndList glIsList glGenLists glDeleteLists
+	glColor
+        glColor3b glColor3d glColor3f glColor3i glColor3s glColor3ub
+        glColor3ui glColor3us glColor4b glColor4d glColor4f glColor4i 
+        glColor4s glColor4ub glColor4ui glColor4us
+
+        glColorMaterial glMaterial
+
+	glNewList glCallList glCallLists glEndList 
+        glIsList glGenLists glDeleteLists glListBase
 
 	glLightModel glShadeModel
 
 	glCullFace
 	
 	glDepthFunc glDepthMask glDepthRange
+        glColorMask
 	
 	glPolygonMode glPolygonOffset
 	
@@ -49,10 +70,12 @@ our %EXPORT_TAGS = ( 'all' => [ qw(
 	glHint
 
 	glLineWidth
+        glLineStipple
+        glPolygonStipple
 
 	glPointSize
 
-	glOrtho
+	glOrtho glFrustum
 
 	glLight
 
@@ -65,12 +88,15 @@ our %EXPORT_TAGS = ( 'all' => [ qw(
 
 
 	glTexImage2D
+	glTexSubImage2D
 
 	glDrawBuffer
 
 	glTexImage3D
 
-	glPixelStorei glPixelStore
+	glPixelStorei glPixelStoref glPixelStore
+
+	glPixelTransferi glPixelTransferf glPixelTransfer
 
 		GL_VENDOR GL_RENDERER GL_VERSION GL_EXTENSIONS
 
@@ -145,6 +171,7 @@ our %EXPORT_TAGS = ( 'all' => [ qw(
 		GL_QUADRATIC_ATTENUATION
 
 		GL_CW GL_CCW
+                GL_EXP GL_EXP2
 
 		GL_TEXTURE_MIN_FILTER GL_TEXTURE_MAG_FILTER
 		GL_TEXTURE_WRAP_S GL_TEXTURE_WRAP_T GL_TEXTURE_PRIORITY
@@ -260,8 +287,10 @@ our %EXPORT_TAGS = ( 'all' => [ qw(
 		GL_TEXTURE_WRAP_R GL_TEXTURE_3D
 
 		
+                glGetError
 
 		gluPerspective gluOrtho2D gluLookAt
+                gluErrorString
 
         glLoadTexture
         glSetupTexGen
@@ -273,7 +302,7 @@ our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT = qw(
 	
 );
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 # Stolen from output of h2xs
 
@@ -303,6 +332,24 @@ sub AUTOLOAD {
 bootstrap OpenGL::Simple $VERSION;
 
 # Preloaded methods go here.
+
+sub glPolygonStipple {
+    if (-1==$#_) {
+        croak("glPolygonStipple needs at least one argument");
+    } elsif (0==$#_) {
+        my $s = shift;
+        if ("ARRAY" eq ref $s) { 
+            realglPolygonStipple(pack("C128",@{$s}));
+        } else {
+            realglPolygonStipple($s);
+        }
+    } else {
+        # Assume it's an array of bitmap values. Pack it into
+        # a 128-byte (32x32 bit) string.
+        my $s = pack("C128",@_);
+        realglPolygonStipple($s);
+    }
+}
 
 # Wrapper around real TI2D call
 
@@ -419,9 +466,122 @@ sub glTexImage2D {
 
 }
 
+# Wrapper around real TSI2D call
+
+sub glTexSubImage2D {
+
+    # Preserve old 9-anonymous-argument version.
+    if (9==@_) {
+        realglTexSubImage2D(@_);
+        return;
+    }
+
+    # Otherwise assume we've been passed a hash.
+
+    my %arg = @_;
+
+
+        # Deal with the straightforward arguments first.
+
+    my $target = ($arg{'target'} or GL_TEXTURE_2D());
+    my $level = ($arg{'level'} or 0);
+    my $xoffset = ($arg{'xoffset'} or 0);
+    my $yoffset = ($arg{'yoffset'} or 0);
+
+    # Now process the image data.
+
+    my $img = $arg{'image'};
+    croak("Require 'image' argument")
+        unless defined($img);
+    croak('image argument should be an Imager object')
+        unless $img->isa('Imager');
+
+    # NB convert it to RGB8!
+    $img = $img->to_rgb8;
+
+    my $bits = $img->bits;
+
+    if ( (8!=$bits) && (16!=$bits)) {
+            croak('Can only take 8 or 16-bit images');
+    }
+
+    # Grab the image data in raw format, and write into $pixels.
+    my $pixdata;
+    $img->write(
+        data => \$pixdata,
+        type => 'raw') or croak('Image->write() failed');
+    my $pixels = \$pixdata;
+
+    my $width = $img->getwidth;
+    my $height = $img->getheight;
+
+    my $channels = $img->getchannels;
+
+    # Now guess the format if not explicitly specified.
+
+    my $format = $arg{'format'};
+
+    if (!defined($format)) {
+        if ( (0>=$channels) || ($channels>4)) {
+            croak("Don't understand $channels-channel images");
+        }
+        $format =
+        ( GL_LUMINANCE(),GL_LUMINANCE_ALPHA(),GL_RGB(),GL_RGBA() )
+            [$channels-1];
+    }
+
+    my $type=$arg{'type'};
+
+    if (!defined($type)) {
+        if (8==$bits) {
+            $type = GL_UNSIGNED_BYTE();
+        } elsif (16==$bits) {
+            $type = GL_UNSIGNED_SHORT();
+        } else {
+            croak("Don't understand $bits-bit images");
+        }
+    }
+
+    realglTexSubImage2D(
+        $target, $level,
+        $xoffset,$yoffset,
+        $width,$height,
+        $format,$type,$pixels);
+
+}
+
+
+sub glReadPixels {
+	# Preserve old 7-anonymous-argument version.
+	if (7==@_) {
+		realglReadPixels(@_);
+		return;
+	}
+
+        # Else assume we've been passed a hash or hashref.
+
+        my %arg;
+        if (1==@_) {
+            %arg=%{$_[0]};
+        } else {
+            %arg = @_;
+        }
+
+        my $rawRef = $arg{'rawdata'};
+        my $imageRef = $arg{'image'};
+        
+        croak("glReadPixels unfinished");
+
+}
+
 sub glPixelStore {
 	my ($pname,$param) = @_;
 	glPixelStorei($pname,$param);
+}
+
+sub glPixelTransfer {
+	my ($pname,$param) = @_;
+	glPixelTransferi($pname,$param);
 }
 
 
